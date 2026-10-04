@@ -64,7 +64,8 @@ jobs:
           -DCMAKE_OSX_ARCHITECTURES=arm64 \
           -DENGINE_SIM_HEADLESS=ON \
           -DENGINE_SIM_PLUGIN=ON \
-          -DDISCORD_ENABLED=OFF
+          -DDISCORD_ENABLED=OFF \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
     - name: Build AU and VST3
       run: cmake --build build --target EngineSimPlugin_AU EngineSimPlugin_VST3

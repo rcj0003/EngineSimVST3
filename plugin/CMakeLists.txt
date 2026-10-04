@@ -22,6 +22,15 @@ if (MSVC)
         PUBLIC
             engine-sim
             engine-sim-script-interpreter)
+elseif (APPLE)
+    # Apple ld has no LINK_GROUP RESCAN. Force-load both archives so the
+    # engine-sim <-> script-interpreter cycle still resolves.
+    target_link_libraries(engine-sim-session
+        PUBLIC
+            "-Wl,-force_load,$<TARGET_FILE:engine-sim>"
+            "-Wl,-force_load,$<TARGET_FILE:engine-sim-script-interpreter>"
+            engine-sim
+            engine-sim-script-interpreter)
 else ()
     target_link_libraries(engine-sim-session
         PUBLIC
