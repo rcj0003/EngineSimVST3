@@ -131,6 +131,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout EngineSimAudioProcessor::cre
         0,
         20000,
         3000));
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID{"reset", 1},
+        "Reset",
+        false));
     return layout;
 }
 
@@ -147,6 +151,7 @@ void EngineSimAudioProcessor::bindParameters() {
     m_simulationFrequency = floatParameter(m_parameters, "simFrequency");
     m_hold = boolParameter(m_parameters, "hold");
     m_rpm = intParameter(m_parameters, "rpm");
+    m_reset = boolParameter(m_parameters, "reset");
 }
 
 void EngineSimAudioProcessor::applyEngineDefaults() {
@@ -178,6 +183,7 @@ EngineSimSession::BlockControls EngineSimAudioProcessor::readControls() const {
         : 10000;
     controls.hold = m_hold != nullptr ? m_hold->get() : false;
     controls.rpm = m_rpm != nullptr ? m_rpm->get() : 3000;
+    controls.reset = m_reset != nullptr ? m_reset->get() : false;
     return controls;
 }
 
@@ -328,6 +334,9 @@ void EngineSimAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juc
         return;
     }
 
+    const EngineSimSession::BlockControls controls = readControls();
+    m_session.applyResetEdge(controls.reset);
+
     bool active = false;
     if (gateIsUniform(midi, numSamples, active)) {
         applyMidiBuffer(midi);
@@ -336,13 +345,12 @@ void EngineSimAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juc
             return;
         }
 
-        m_session.process(readControls(), numSamples, buffer.getWritePointer(0));
+        m_session.process(controls, numSamples, buffer.getWritePointer(0));
         for (int channel = 1; channel < numChannels; ++channel)
             buffer.copyFrom(channel, 0, buffer, 0, 0, numSamples);
         return;
     }
 
-    const EngineSimSession::BlockControls controls = readControls();
     int cursor = 0;
     for (const auto metadata : midi) {
         const int eventPos = juce::jlimit(0, numSamples, metadata.samplePosition);

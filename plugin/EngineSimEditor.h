@@ -28,6 +28,7 @@ private:
     EngineSimAudioProcessor &m_processor;
     juce::Label m_status;
     juce::TextButton m_loadButton;
+    juce::TextButton m_resetButton;
     std::unique_ptr<juce::FileChooser> m_chooser;
     bool m_alive = true;
     juce::Label m_rpmReadout;

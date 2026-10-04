@@ -27,13 +27,13 @@ Outside of the engine (which is not able to be changed via automation but can be
 
 1. Add VST/AU to MIDI track
 2. In the current implementation, there must be a MIDI note that is currently active in order for the simulation to run (instead of it running 24/7 in the initial implementation). If there isn't a MIDI note playing, then the simulation PAUSES (not terminates); playing a MIDI note will resume exactly from where it was last.
+3. Automate the reset boolean to force it to reset.
 
 
 # Potential TODOs
 
 
 - Improve the UI
-- Add automation to reset current state of simulation
 
 
 

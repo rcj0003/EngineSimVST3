@@ -80,6 +80,7 @@ private:
     juce::AudioParameterFloat *m_simulationFrequency = nullptr;
     juce::AudioParameterBool *m_hold = nullptr;
     juce::AudioParameterInt *m_rpm = nullptr;
+    juce::AudioParameterBool *m_reset = nullptr;
     std::array<bool, 128> m_noteDown{};
     int m_activeNotes = 0;
 

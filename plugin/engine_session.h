@@ -25,6 +25,7 @@ public:
         int simulationFrequency = 10000;
         bool hold = false;
         int rpm = 3000;
+        bool reset = false;
     };
 
     struct CompiledEngine {
@@ -51,6 +52,8 @@ public:
     bool install(CompiledEngine &compiled);
 
     void prepare(double sampleRate);
+    // Rising edge of reset soft-restarts physics without reloading the script.
+    void applyResetEdge(bool reset);
     void process(const BlockControls &controls, int numSamples, float *output);
 
     bool loaded() const { return m_simulator != nullptr; }
@@ -69,6 +72,7 @@ public:
 private:
     static void discard(CompiledEngine &compiled);
     void release();
+    void softReset();
     void applyControls(const BlockControls &controls);
     void renderChunk(int numSamples, float *output);
 
@@ -86,6 +90,7 @@ private:
     double m_smoothedThrottle = 0.0;
     int m_appliedGear = -1;
     bool m_crankUntilRunning = false;
+    bool m_resetWasHigh = false;
 
     int m_simulationFrequency = 10000;
     std::atomic<float> m_measuredRpm{0.0f};

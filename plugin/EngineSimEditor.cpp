@@ -44,6 +44,17 @@ EngineSimAudioProcessorEditor::EngineSimAudioProcessorEditor(EngineSimAudioProce
     m_loadButton.onClick = [this] { chooseEngine(); };
     addAndMakeVisible(m_loadButton);
 
+    m_resetButton.setButtonText("Reset");
+    m_resetButton.onClick = [this] {
+        if (auto *parameter = m_processor.parameters().getParameter("reset")) {
+            parameter->beginChangeGesture();
+            parameter->setValueNotifyingHost(1.0f);
+            parameter->setValueNotifyingHost(0.0f);
+            parameter->endChangeGesture();
+        }
+    };
+    addAndMakeVisible(m_resetButton);
+
     m_rpmReadout.setJustificationType(juce::Justification::centredLeft);
     m_rpmReadout.setColour(juce::Label::textColourId, juce::Colours::white);
     m_rpmReadout.setText("RPM  0", juce::dontSendNotification);
@@ -149,7 +160,10 @@ void EngineSimAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(12);
     m_status.setBounds(area.removeFromTop(36));
     area.removeFromTop(4);
-    m_loadButton.setBounds(area.removeFromTop(28).removeFromLeft(160));
+    auto buttons = area.removeFromTop(28);
+    m_loadButton.setBounds(buttons.removeFromLeft(160));
+    buttons.removeFromLeft(8);
+    m_resetButton.setBounds(buttons.removeFromLeft(100));
     area.removeFromTop(4);
     m_rpmReadout.setBounds(area.removeFromTop(24));
     area.removeFromTop(4);
