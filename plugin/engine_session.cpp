@@ -84,6 +84,9 @@ std::filesystem::path findEngineRoot(std::filesystem::path start) {
     for (int i = 0; i < 10 && !start.empty(); ++i) {
         if (isEngineRoot(start))
             return start;
+        // macOS .app: assets live under Contents/Resources so codesign stays sealed.
+        if (isEngineRoot(start / "Resources"))
+            return start / "Resources";
         if (isEngineRoot(start / "engine-sim"))
             return start / "engine-sim";
 

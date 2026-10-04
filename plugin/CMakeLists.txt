@@ -96,18 +96,28 @@ target_link_libraries(EngineSimPlugin
 # bundle means the install does not depend on the machine where it was compiled.
 # On Apple, JUCE signs during the build; writing assets afterward invalidates that
 # signature, so re-sign with an ad-hoc identity before hosts will load the plugin.
+#
+# VST3/AU: copy to the bundle root (next to Contents/).
+# Standalone .app: copy into Contents/Resources/ — files at the .app root make
+# codesign fail with "unsealed contents present in the bundle root".
 function(engine_sim_bundle_runtime_assets format_target)
     if (NOT TARGET ${format_target})
         return()
     endif ()
 
+    if (format_target STREQUAL "EngineSimPlugin_Standalone")
+        set(_engine_sim_bundle_rel "../Resources")
+    else ()
+        set(_engine_sim_bundle_rel "../..")
+    endif ()
+
     add_custom_command(TARGET ${format_target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/assets"
-            "$<TARGET_FILE_DIR:${format_target}>/../../assets"
+            "$<TARGET_FILE_DIR:${format_target}>/${_engine_sim_bundle_rel}/assets"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/es"
-            "$<TARGET_FILE_DIR:${format_target}>/../../es")
+            "$<TARGET_FILE_DIR:${format_target}>/${_engine_sim_bundle_rel}/es")
 
     if (APPLE)
         add_custom_command(TARGET ${format_target} POST_BUILD
