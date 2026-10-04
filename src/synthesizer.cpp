@@ -1,10 +1,12 @@
 #include "../include/synthesizer.h"
 
 #include "../include/utilities.h"
-#include "../include/delta.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
 
 #undef min
 #undef max
@@ -278,6 +280,80 @@ void Synthesizer::setInputSampleRate(double sampleRate) {
     }
 }
 
+void Synthesizer::setAudioSampleRate(float sampleRate) {
+    if (sampleRate <= 0.0f || sampleRate == m_audioSampleRate) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_lock0);
+    m_audioSampleRate = sampleRate;
+
+    if (m_filters == nullptr) {
+        return;
+    }
+
+    for (int i = 0; i < m_inputChannelCount; ++i) {
+        m_filters[i].airNoiseLowPass.setCutoffFrequency(
+            m_audioParameters.airNoiseFrequencyCutoff, m_audioSampleRate);
+        m_filters[i].derivative.m_dt = 1.0 / m_audioSampleRate;
+        m_filters[i].inputDcFilter.m_dt = 1.0 / m_audioSampleRate;
+        m_filters[i].jitterFilter.initialize(
+            10,
+            m_audioParameters.inputSampleNoiseFrequencyCutoff,
+            m_audioSampleRate);
+        m_filters[i].antialiasing.setCutoffFrequency(1900.0f, m_audioSampleRate);
+    }
+
+    m_antialiasing.setCutoffFrequency(m_audioSampleRate * 0.45f, m_audioSampleRate);
+}
+
+int Synthesizer::queuedSamples() const {
+    if (m_inputChannels == nullptr || m_inputChannelCount <= 0)
+        return 0;
+
+    return static_cast<int>(m_inputChannels[0].data.size());
+}
+
+int Synthesizer::renderBlock(int maxSamples, float *output) {
+    if (m_thread != nullptr || output == nullptr || maxSamples <= 0) {
+        return 0;
+    }
+    if (m_inputChannels == nullptr || m_inputChannelCount <= 0 || m_filters == nullptr) {
+        return 0;
+    }
+
+    std::lock_guard<std::mutex> lock(m_lock0);
+
+    const int available = static_cast<int>(m_inputChannels[0].data.size());
+    int remaining = std::min(maxSamples, available);
+    int written = 0;
+
+    while (remaining > 0) {
+        const int n = std::min(remaining, m_inputBufferSize);
+
+        for (int i = 0; i < m_inputChannelCount; ++i) {
+            m_inputChannels[i].data.read(static_cast<size_t>(n), m_inputChannels[i].transferBuffer);
+            m_filters[i].airNoiseLowPass.setCutoffFrequency(
+                static_cast<float>(m_audioParameters.airNoiseFrequencyCutoff), m_audioSampleRate);
+            m_filters[i].jitterFilter.setJitterScale(m_audioParameters.inputSampleNoise);
+        }
+
+        for (int i = 0; i < n; ++i) {
+            output[written + i] =
+                static_cast<float>(renderAudio(i)) / static_cast<float>(INT16_MAX);
+        }
+
+        for (int i = 0; i < m_inputChannelCount; ++i) {
+            m_inputChannels[i].data.removeBeginning(static_cast<size_t>(n));
+        }
+
+        written += n;
+        remaining -= n;
+    }
+
+    return written;
+}
+
 int16_t Synthesizer::renderAudio(int inputSample) {
     const float airNoise = m_audioParameters.airNoise;
     const float dF_F_mix = m_audioParameters.dF_F_mix;
@@ -304,7 +380,7 @@ int16_t Synthesizer::renderAudio(int inputSample) {
         float v_in =
             f_p * dF_F_mix
             + f * r_mixed * (1 - dF_F_mix);
-        if (fpclassify(v_in) == FP_SUBNORMAL) {
+        if (std::fpclassify(v_in) == FP_SUBNORMAL) {
             v_in = 0;
         }
 
@@ -318,7 +394,15 @@ int16_t Synthesizer::renderAudio(int inputSample) {
     signal = m_antialiasing.fast_f(signal);
 
     m_levelingFilter.p_target = m_audioParameters.levelerTarget;
-    const float v_leveled = m_levelingFilter.f(signal) * m_audioParameters.volume;
+    float v_leveled = m_levelingFilter.f(signal) * m_audioParameters.volume;
+    const float ceiling = static_cast<float>(INT16_MAX);
+    const float amplitude = std::abs(v_leveled);
+    if (amplitude > ceiling) {
+        const float scale = ceiling / amplitude;
+        v_leveled *= scale;
+        m_levelingFilter.scaleAttenuation(scale);
+    }
+
     int r_int = std::lround(v_leveled);
     if (r_int > INT16_MAX) {
         r_int = INT16_MAX;

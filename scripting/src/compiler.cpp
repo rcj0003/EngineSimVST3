@@ -29,6 +29,12 @@ void es_script::Compiler::initialize() {
     m_rules.initialize();
 }
 
+void es_script::Compiler::addSearchPath(const piranha::IrPath &path) {
+    if (m_compiler != nullptr) {
+        m_compiler->addSearchPath(path);
+    }
+}
+
 bool es_script::Compiler::compile(const piranha::IrPath &path) {
     bool successful = false;
 

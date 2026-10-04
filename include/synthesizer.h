@@ -86,6 +86,18 @@ class Synthesizer {
         void setInputSampleRate(double sampleRate);
         double getInputSampleRate() const { return m_inputSampleRate; }
 
+        // Recomputes filter coefficients. Call when the host sample rate changes, before rendering.
+        void setAudioSampleRate(float sampleRate);
+        float getAudioSampleRate() const { return m_audioSampleRate; }
+
+        // Samples written by writeInput and not yet consumed by renderBlock.
+        int queuedSamples() const;
+
+        // Renders up to maxSamples from the input written since the last call.
+        // Do not use this while the audio rendering thread is running.
+        // Samples are the same int16 signal the app plays, scaled to roughly -1..1.
+        int renderBlock(int maxSamples, float *output);
+
         int16_t renderAudio(int inputOffset);
 
         double getLevelerGain();

@@ -1,9 +1,11 @@
-add_subdirectory(delta-studio)
+if (NOT ENGINE_SIM_HEADLESS)
+    add_subdirectory(delta-studio)
 
-set_property(TARGET delta-basic PROPERTY FOLDER "delta")
-set_property(TARGET delta-basic-demo PROPERTY FOLDER "delta")
-set_property(TARGET delta-core PROPERTY FOLDER "delta")
-set_property(TARGET delta-physics PROPERTY FOLDER "delta")
+    set_property(TARGET delta-basic PROPERTY FOLDER "delta")
+    set_property(TARGET delta-basic-demo PROPERTY FOLDER "delta")
+    set_property(TARGET delta-core PROPERTY FOLDER "delta")
+    set_property(TARGET delta-physics PROPERTY FOLDER "delta")
+endif ()
 
 add_subdirectory(simple-2d-constraint-solver)
 
@@ -23,8 +25,10 @@ if (DTV)
     set_property(TARGET direct-to-video PROPERTY FOLDER "dtv")
 endif (DTV)
 
-add_subdirectory(piranha)
+if (PIRANHA_ENABLED)
+    add_subdirectory(piranha)
 
-set_property(TARGET piranha PROPERTY FOLDER "piranha")
-set_property(TARGET piranha_test PROPERTY FOLDER "piranha")
-set_property(TARGET piranha_reference_compiler PROPERTY FOLDER "piranha")
+    set_property(TARGET piranha PROPERTY FOLDER "piranha")
+    set_property(TARGET piranha_test PROPERTY FOLDER "piranha")
+    set_property(TARGET piranha_reference_compiler PROPERTY FOLDER "piranha")
+endif ()

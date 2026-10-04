@@ -36,6 +36,12 @@ public:
     void releaseSimulation();
 
     virtual void startFrame(double dt);
+    // Runs exactly `steps` physics steps. Does not chase the synthesizer buffer.
+    void beginFixedBlock(int steps);
+    // Resets the step counter and intake-flow average for one audio block.
+    void prepareAudioSteps();
+    // Runs one physics step past the number currently scheduled.
+    bool simulateOneMoreStep();
     bool simulateStep();
     virtual double getTotalExhaustFlow() const;
     int readAudioOutput(int samples, int16_t *target);

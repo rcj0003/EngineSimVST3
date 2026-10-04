@@ -32,3 +32,8 @@ float LevelingFilter::f(float sample) {
 
     return sample * m_attenuation;
 }
+
+void LevelingFilter::scaleAttenuation(float scale) {
+    if (scale < 1.0f)
+        m_attenuation *= scale;
+}

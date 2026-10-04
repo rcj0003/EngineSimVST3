@@ -92,6 +92,42 @@ void Simulator::startFrame(double dt) {
     }
 }
 
+void Simulator::beginFixedBlock(int steps) {
+    if (m_engine == nullptr || steps < 0) {
+        m_steps = 0;
+        return;
+    }
+
+    m_simulationStart = std::chrono::steady_clock::now();
+    m_currentIteration = 0;
+    m_simulationSpeed = 1.0;
+    m_synthesizer.setInputSampleRate(static_cast<double>(m_simulationFrequency));
+    m_steps = steps;
+
+    if (m_steps > 0) {
+        for (int i = 0; i < m_engine->getIntakeCount(); ++i) {
+            m_engine->getIntake(i)->m_flowRate = 0;
+        }
+    }
+}
+
+void Simulator::prepareAudioSteps() {
+    beginFixedBlock(0);
+    if (m_engine == nullptr)
+        return;
+
+    for (int i = 0; i < m_engine->getIntakeCount(); ++i)
+        m_engine->getIntake(i)->m_flowRate = 0;
+}
+
+bool Simulator::simulateOneMoreStep() {
+    if (m_engine == nullptr)
+        return false;
+
+    m_steps = m_currentIteration + 1;
+    return simulateStep();
+}
+
 bool Simulator::simulateStep() {
     if (getCurrentIteration() >= simulationSteps()) {
         auto s1 = std::chrono::steady_clock::now();
@@ -166,6 +202,8 @@ void Simulator::endFrame() {
 
 void Simulator::destroy() {
     m_synthesizer.destroy();
+    delete[] m_dynoTorqueSamples;
+    m_dynoTorqueSamples = nullptr;
 }
 
 void Simulator::startAudioRenderingThread() {

@@ -3,6 +3,21 @@ cmake_minimum_required(VERSION 3.10)
 option(DTV "Enable video output" OFF)
 option(PIRANHA_ENABLED "Enable scripting input" ON)
 option(DISCORD_ENABLED "Enable Discord Rich Presence" ON)
+option(ENGINE_SIM_HEADLESS "Build the simulator library without the desktop UI" OFF)
+option(ENGINE_SIM_PLUGIN "Build the JUCE VST3 and Standalone plugin" ON)
+
+if (ENGINE_SIM_HEADLESS)
+    set(DTV OFF)
+    set(DISCORD_ENABLED OFF)
+    if (NOT ENGINE_SIM_PLUGIN)
+        set(PIRANHA_ENABLED OFF)
+    endif ()
+endif ()
+
+# The VST3 is a shared library, so every static archive it links must be relocatable.
+if (ENGINE_SIM_PLUGIN)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif ()
 
 if (DTV)
     add_compile_definitions(ATG_ENGINE_SIM_VIDEO_CAPTURE)
@@ -23,6 +38,14 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
 project(engine-sim)
 
 set(CMAKE_CXX_STANDARD 17)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wno-changes-meaning)
+endif ()
+
+if (NOT MSVC)
+    add_compile_definitions(__forceinline=inline)
+endif ()
 
 # ========================================================
 # GTEST
@@ -75,6 +98,7 @@ add_library(engine-sim STATIC
     src/low_pass_filter.cpp
     src/part.cpp
     src/piston.cpp
+    src/pcm_wave.cpp
     src/piston_engine_simulator.cpp
     src/simulator.cpp
     src/standard_valvetrain.cpp
@@ -119,6 +143,7 @@ add_library(engine-sim STATIC
     include/low_pass_filter.h
     include/part.h
     include/piston.h
+    include/pcm_wave.h
     include/piston_engine_simulator.h
     include/simulator.h
     include/standard_valvetrain.h
@@ -134,13 +159,19 @@ add_library(engine-sim STATIC
     include/vtec_valvetrain.h
 )
 
+find_package(Threads REQUIRED)
+
 target_link_libraries(engine-sim
-    simple-2d-constraint-solver
-    csv-io
-    delta-basic)
+    PUBLIC
+        simple-2d-constraint-solver
+        csv-io
+        Threads::Threads)
 
 target_include_directories(engine-sim
-    PUBLIC dependencies/submodules)
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules
+        ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules/simple-2d-constraint-solver/include)
 
 if (PIRANHA_ENABLED)
     add_library(engine-sim-script-interpreter STATIC
@@ -184,11 +215,17 @@ if (PIRANHA_ENABLED)
     )
 
     target_include_directories(engine-sim-script-interpreter
-        PUBLIC dependencies/submodules)
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/scripting/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules
+            ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules/piranha/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules/simple-2d-constraint-solver/include)
 
     target_link_libraries(engine-sim-script-interpreter
-        csv-io
-        piranha)
+        PUBLIC
+            csv-io
+            piranha)
 endif (PIRANHA_ENABLED)
 
 if (DISCORD_ENABLED)
@@ -203,6 +240,7 @@ if (DISCORD_ENABLED)
     )
 endif (DISCORD_ENABLED)
 
+if (NOT ENGINE_SIM_HEADLESS)
 add_executable(engine-sim-app WIN32
     # Source files
     src/main.cpp
@@ -276,6 +314,7 @@ add_executable(engine-sim-app WIN32
 
 target_link_libraries(engine-sim-app
     engine-sim
+    delta-basic
 )
 
 if (DTV)
@@ -298,6 +337,7 @@ endif (DISCORD_ENABLED)
 
 target_include_directories(engine-sim-app
     PUBLIC dependencies/submodules)
+endif ()
 
 add_subdirectory(dependencies)
 
@@ -309,8 +349,12 @@ add_executable(engine-sim-test
     # Source files
     test/gas_system_tests.cpp
     test/function_test.cpp
+    test/pcm_wave_tests.cpp
     test/synthesizer_tests.cpp
 )
+
+target_compile_definitions(engine-sim-test PRIVATE
+    "ENGINE_SIM_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\"")
 
 target_link_libraries(engine-sim-test
     gtest_main
@@ -319,3 +363,7 @@ target_link_libraries(engine-sim-test
 
 include(GoogleTest)
 gtest_discover_tests(engine-sim-test)
+
+if (ENGINE_SIM_PLUGIN)
+    add_subdirectory(plugin)
+endif ()
