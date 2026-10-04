@@ -21,4 +21,10 @@ Outside of the engine (which is not able to be changed via automation but can be
 # Credits
 
 
-AngeTheGreat and his work on Engine Simulator - I was ecstatic when I learned of the existence of Engine Simulator. I've enjoyed watching the continued development on it
+AngeTheGreat and his work on Engine Simulator - I was ecstatic when I learned of the existence of Engine Simulator. I've enjoyed watching the continued development on it.
+
+
+[Click here](https://github.com/Engine-Simulator/engine-sim-community-edition) to see the currently maintained version of Engine Simulator.
+
+
+[Click here](ENGINE_SIMULATOR_README.md) to see the original README for this project.
