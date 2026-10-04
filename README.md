@@ -10,6 +10,9 @@ EngineSimVST3 is a VST that integrates AngeTheGreat's Engine Simulator Demo into
 
 
 
+![Alt text](docs/public/screenshots/screenshot_logic_automation.png?raw=true)
+
+
 Outside of the engine (which is not able to be changed via automation but can be changed otherwise), all of the parameters displayed above are available to have automations created for them.
 
 
