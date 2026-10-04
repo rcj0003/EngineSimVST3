@@ -97,15 +97,14 @@ target_link_libraries(EngineSimPlugin
 # On Apple, JUCE signs during the build; writing assets afterward invalidates that
 # signature, so re-sign with an ad-hoc identity before hosts will load the plugin.
 #
-# VST3/AU: copy to the bundle root (next to Contents/).
-# Standalone .app: copy into Contents/Resources/ — files at the .app root make
-# codesign fail with "unsealed contents present in the bundle root".
+# Apple AU/VST3/.app all reject unsealed files at the bundle root, so assets go
+# in Contents/Resources/. Linux/Windows VST3 keeps the bundle-root layout.
 function(engine_sim_bundle_runtime_assets format_target)
     if (NOT TARGET ${format_target})
         return()
     endif ()
 
-    if (format_target STREQUAL "EngineSimPlugin_Standalone")
+    if (APPLE)
         set(_engine_sim_bundle_rel "../Resources")
     else ()
         set(_engine_sim_bundle_rel "../..")
