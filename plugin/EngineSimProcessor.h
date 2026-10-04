@@ -4,6 +4,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <array>
+
 class EngineSimAudioProcessor : public juce::AudioProcessor {
 public:
     EngineSimAudioProcessor();
@@ -46,6 +48,16 @@ private:
     void bindParameters();
     void applyEngineDefaults();
     EngineSimSession::BlockControls readControls() const;
+    void applyMidiMessage(const juce::MidiMessage &message);
+    void applyMidiBuffer(const juce::MidiBuffer &midi);
+    // True when the block is entirely held or entirely silent. active is that held state.
+    bool gateIsUniform(const juce::MidiBuffer &midi, int numSamples, bool &active) const;
+    void writeSegment(
+        juce::AudioBuffer<float> &buffer,
+        int start,
+        int count,
+        bool active,
+        const EngineSimSession::BlockControls &controls);
 
     EngineSimSession m_session;
     juce::CriticalSection m_engineLock;
@@ -68,6 +80,8 @@ private:
     juce::AudioParameterFloat *m_simulationFrequency = nullptr;
     juce::AudioParameterBool *m_hold = nullptr;
     juce::AudioParameterInt *m_rpm = nullptr;
+    std::array<bool, 128> m_noteDown{};
+    int m_activeNotes = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EngineSimAudioProcessor)
 };

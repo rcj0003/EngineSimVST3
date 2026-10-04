@@ -2,7 +2,40 @@
 
 #include "EngineSimEditor.h"
 
+#include <array>
+
 namespace {
+
+void applyNoteMessage(std::array<bool, 128> &noteDown, int &activeNotes, const juce::MidiMessage &message) {
+    if (message.isAllNotesOff() || message.isAllSoundOff()) {
+        if (activeNotes != 0) {
+            noteDown.fill(false);
+            activeNotes = 0;
+        }
+        return;
+    }
+
+    if (!message.isNoteOn() && !message.isNoteOff())
+        return;
+
+    const int note = message.getNoteNumber();
+    if (note < 0 || note >= 128)
+        return;
+
+    const size_t index = static_cast<size_t>(note);
+    if (message.isNoteOn()) {
+        if (!noteDown[index]) {
+            noteDown[index] = true;
+            ++activeNotes;
+        }
+        return;
+    }
+
+    if (noteDown[index]) {
+        noteDown[index] = false;
+        --activeNotes;
+    }
+}
 
 juce::AudioParameterFloat *floatParameter(juce::AudioProcessorValueTreeState &state, const char *id) {
     return dynamic_cast<juce::AudioParameterFloat *>(state.getParameter(id));
@@ -211,18 +244,117 @@ bool EngineSimAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts)
     return output == juce::AudioChannelSet::mono() || output == juce::AudioChannelSet::stereo();
 }
 
-void EngineSimAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &) {
-    juce::ScopedNoDenormals noDenormals;
-    const juce::ScopedTryLock lock(m_engineLock);
+void EngineSimAudioProcessor::applyMidiMessage(const juce::MidiMessage &message) {
+    applyNoteMessage(m_noteDown, m_activeNotes, message);
+}
 
-    if (!lock.isLocked() || !m_session.loaded() || buffer.getNumSamples() <= 0 || buffer.getNumChannels() <= 0) {
+void EngineSimAudioProcessor::applyMidiBuffer(const juce::MidiBuffer &midi) {
+    for (const auto metadata : midi)
+        applyMidiMessage(metadata.getMessage());
+}
+
+bool EngineSimAudioProcessor::gateIsUniform(const juce::MidiBuffer &midi, int numSamples, bool &active) const {
+    auto noteDown = m_noteDown;
+    int activeNotes = m_activeNotes;
+    bool decided = false;
+    bool uniformActive = false;
+    int cursor = 0;
+
+    const auto consumeRange = [&](int end) {
+        if (end <= cursor)
+            return true;
+
+        const bool rangeActive = activeNotes > 0;
+        if (!decided) {
+            uniformActive = rangeActive;
+            decided = true;
+        }
+        else if (rangeActive != uniformActive) {
+            return false;
+        }
+
+        cursor = end;
+        return true;
+    };
+
+    for (const auto metadata : midi) {
+        const int eventPos = juce::jlimit(0, numSamples, metadata.samplePosition);
+        if (!consumeRange(eventPos))
+            return false;
+        applyNoteMessage(noteDown, activeNotes, metadata.getMessage());
+    }
+
+    if (!consumeRange(numSamples))
+        return false;
+
+    active = decided && uniformActive;
+    return true;
+}
+
+void EngineSimAudioProcessor::writeSegment(
+    juce::AudioBuffer<float> &buffer,
+    int start,
+    int count,
+    bool active,
+    const EngineSimSession::BlockControls &controls) {
+    if (count <= 0)
+        return;
+
+    if (!active) {
+        buffer.clear(start, count);
+        return;
+    }
+
+    m_session.process(controls, count, buffer.getWritePointer(0) + start);
+    for (int channel = 1; channel < buffer.getNumChannels(); ++channel)
+        buffer.copyFrom(channel, start, buffer, 0, start, count);
+}
+
+void EngineSimAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midi) {
+    juce::ScopedNoDenormals noDenormals;
+
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+    if (numSamples <= 0 || numChannels <= 0) {
+        applyMidiBuffer(midi);
         buffer.clear();
         return;
     }
 
-    m_session.process(readControls(), buffer.getNumSamples(), buffer.getWritePointer(0));
-    for (int channel = 1; channel < buffer.getNumChannels(); ++channel)
-        buffer.copyFrom(channel, 0, buffer, 0, 0, buffer.getNumSamples());
+    const juce::ScopedTryLock lock(m_engineLock);
+    if (!lock.isLocked() || !m_session.loaded()) {
+        applyMidiBuffer(midi);
+        buffer.clear();
+        return;
+    }
+
+    bool active = false;
+    if (gateIsUniform(midi, numSamples, active)) {
+        applyMidiBuffer(midi);
+        if (!active) {
+            buffer.clear();
+            return;
+        }
+
+        m_session.process(readControls(), numSamples, buffer.getWritePointer(0));
+        for (int channel = 1; channel < numChannels; ++channel)
+            buffer.copyFrom(channel, 0, buffer, 0, 0, numSamples);
+        return;
+    }
+
+    const EngineSimSession::BlockControls controls = readControls();
+    int cursor = 0;
+    for (const auto metadata : midi) {
+        const int eventPos = juce::jlimit(0, numSamples, metadata.samplePosition);
+        if (eventPos > cursor) {
+            writeSegment(buffer, cursor, eventPos - cursor, m_activeNotes > 0, controls);
+            cursor = eventPos;
+        }
+        applyMidiMessage(metadata.getMessage());
+    }
+
+    if (cursor < numSamples)
+        writeSegment(buffer, cursor, numSamples - cursor, m_activeNotes > 0, controls);
 }
 
 juce::AudioProcessorEditor *EngineSimAudioProcessor::createEditor() {

@@ -35,6 +35,12 @@ endif (DISCORD_ENABLED)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
 
+# Logic / Ableton on Apple Silicon: arm64 only, no Rosetta / universal slice.
+# APPLE is not set until project(), so key off the host. Override with -D if needed.
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for macOS")
+endif ()
+
 project(engine-sim)
 
 set(CMAKE_CXX_STANDARD 17)

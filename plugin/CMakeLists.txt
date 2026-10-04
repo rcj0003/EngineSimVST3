@@ -40,6 +40,13 @@ target_compile_definitions(engine-sim-session
     PUBLIC
         "ENGINE_SIM_ROOT=\"${CMAKE_SOURCE_DIR}\"")
 
+# Logic Pro loads AU only. Ableton on macOS uses VST3. Linux/Windows stay VST3.
+if (APPLE)
+    set(ENGINE_SIM_PLUGIN_FORMATS AU VST3 Standalone)
+else ()
+    set(ENGINE_SIM_PLUGIN_FORMATS VST3 Standalone)
+endif ()
+
 juce_add_plugin(EngineSimPlugin
     VERSION 1.0.0
     COMPANY_NAME "Engine Sim"
@@ -52,7 +59,7 @@ juce_add_plugin(EngineSimPlugin
     COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE Egsm
     PLUGIN_CODE Egs1
-    FORMATS VST3 Standalone
+    FORMATS ${ENGINE_SIM_PLUGIN_FORMATS}
     PRODUCT_NAME "Engine Sim")
 
 target_sources(EngineSimPlugin
@@ -78,13 +85,34 @@ target_link_libraries(EngineSimPlugin
 
 # The plugin looks beside its own binary for assets/ and es/. Shipping them in the
 # bundle means the install does not depend on the machine where it was compiled.
-add_custom_command(TARGET EngineSimPlugin_VST3 POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/assets"
-        "$<TARGET_FILE_DIR:EngineSimPlugin_VST3>/../../assets"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/es"
-        "$<TARGET_FILE_DIR:EngineSimPlugin_VST3>/../../es")
+# On Apple, JUCE signs during the build; writing assets afterward invalidates that
+# signature, so re-sign with an ad-hoc identity before hosts will load the plugin.
+function(engine_sim_bundle_runtime_assets format_target)
+    if (NOT TARGET ${format_target})
+        return()
+    endif ()
+
+    add_custom_command(TARGET ${format_target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:${format_target}>/../../assets"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/es"
+            "$<TARGET_FILE_DIR:${format_target}>/../../es")
+
+    if (APPLE)
+        add_custom_command(TARGET ${format_target} POST_BUILD
+            COMMAND codesign --force --sign - --deep --timestamp=none
+                "$<TARGET_BUNDLE_DIR:${format_target}>"
+            COMMENT "Ad-hoc codesign ${format_target} after bundling assets")
+    endif ()
+endfunction()
+
+engine_sim_bundle_runtime_assets(EngineSimPlugin_VST3)
+if (APPLE)
+    engine_sim_bundle_runtime_assets(EngineSimPlugin_AU)
+    engine_sim_bundle_runtime_assets(EngineSimPlugin_Standalone)
+endif ()
 
 add_executable(engine-sim-offline-render
     offline_render.cpp)
