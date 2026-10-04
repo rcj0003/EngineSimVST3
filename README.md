@@ -18,8 +18,23 @@ Outside of the engine (which is not able to be changed via automation but can be
 1. Engine Simulator is already taxing on your CPU as a standalone application. It's simulating the physics of an engine to produce the sound, after all. As a VST? Perhaps a little more taxing. I wouldn't count on being able to run it in real-time without making some sacrifices. Examples of that might include: freezing or bouncing the track, decreasing simulation frequency, or choosing a different engine that is not as taxing.
 2. Engine Simulator was originally designed for compilation with MSVC. Some changes were made to make it platform agnostic and able to be compiled on multiple different platforms.
 
-# Credits
 
+# How to use
+
+
+1. Add VST/AU to MIDI track
+2. In the current implementation, there must be a MIDI note that is currently active in order for the simulation to run (instead of it running 24/7 in the initial implementation). If there isn't a MIDI note playing, then the simulation PAUSES (not terminates); playing a MIDI note will resume exactly from where it was last.
+
+
+# Potential TODOs
+
+
+- Improve the UI
+- Add automation to reset current state of simulation
+
+
+
+# Credits
 
 AngeTheGreat and his work on Engine Simulator - I was ecstatic when I learned of the existence of Engine Simulator. I've enjoyed watching the continued development on it.
 
