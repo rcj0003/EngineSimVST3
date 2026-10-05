@@ -18,6 +18,7 @@ public:
         float noiseCutoffFrequency,
         float audioFrequency);
     virtual float f(float sample) override;
+    void reset();
 
     __forceinline float fast_f(float sample, float jitterScale = 1.0f) {
         m_history[m_offset] = sample;

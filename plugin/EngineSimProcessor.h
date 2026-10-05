@@ -5,8 +5,10 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <array>
+#include <atomic>
 
-class EngineSimAudioProcessor : public juce::AudioProcessor {
+class EngineSimAudioProcessor : public juce::AudioProcessor,
+                                private juce::AudioProcessorValueTreeState::Listener {
 public:
     EngineSimAudioProcessor();
     ~EngineSimAudioProcessor() override;
@@ -45,6 +47,7 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void parameterChanged(const juce::String &parameterID, float newValue) override;
     void bindParameters();
     void applyEngineDefaults();
     EngineSimSession::BlockControls readControls() const;
@@ -80,6 +83,8 @@ private:
     juce::AudioParameterFloat *m_simulationFrequency = nullptr;
     juce::AudioParameterBool *m_hold = nullptr;
     juce::AudioParameterInt *m_rpm = nullptr;
+    juce::AudioParameterBool *m_reset = nullptr;
+    std::atomic<bool> m_resetRequested{false};
     std::array<bool, 128> m_noteDown{};
     int m_activeNotes = 0;
 

@@ -1,5 +1,7 @@
 #include "../include/jitter_filter.h"
 
+#include <cstring>
+
 JitterFilter::JitterFilter() {
     m_history = nullptr;
     m_maxJitter = 0;
@@ -27,4 +29,11 @@ void JitterFilter::initialize(
 
 float JitterFilter::f(float sample) {
     return fast_f(sample);
+}
+
+void JitterFilter::reset() {
+    m_offset = 0;
+    if (m_history != nullptr && m_maxJitter > 0)
+        memset(m_history, 0, sizeof(float) * static_cast<size_t>(m_maxJitter));
+    m_noiseFilter.reset();
 }

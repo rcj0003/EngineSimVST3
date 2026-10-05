@@ -314,6 +314,42 @@ int Synthesizer::queuedSamples() const {
     return static_cast<int>(m_inputChannels[0].data.size());
 }
 
+void Synthesizer::clearAudioHistory() {
+    std::lock_guard<std::mutex> lock(m_lock0);
+
+    m_inputWriteOffset = 0.0;
+    m_lastInputSampleOffset = 0.0;
+    m_inputSamplesRead = 0;
+    m_latency = 0;
+
+    if (m_inputChannels != nullptr) {
+        for (int i = 0; i < m_inputChannelCount; ++i) {
+            m_inputChannels[i].data.clear();
+            m_inputChannels[i].lastInputSample = 0.0;
+            if (m_inputChannels[i].transferBuffer != nullptr && m_inputBufferSize > 0) {
+                std::fill(
+                    m_inputChannels[i].transferBuffer,
+                    m_inputChannels[i].transferBuffer + m_inputBufferSize,
+                    0.0f);
+            }
+        }
+    }
+
+    if (m_filters != nullptr) {
+        for (int i = 0; i < m_inputChannelCount; ++i) {
+            m_filters[i].convolution.clearHistory();
+            m_filters[i].derivative.reset();
+            m_filters[i].jitterFilter.reset();
+            m_filters[i].airNoiseLowPass.reset();
+            m_filters[i].inputDcFilter.reset();
+            m_filters[i].antialiasing.reset();
+        }
+    }
+
+    m_antialiasing.reset();
+    m_levelingFilter.reset();
+}
+
 int Synthesizer::renderBlock(int maxSamples, float *output) {
     if (m_thread != nullptr || output == nullptr || maxSamples <= 0) {
         return 0;

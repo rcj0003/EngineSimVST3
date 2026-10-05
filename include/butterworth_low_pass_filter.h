@@ -53,6 +53,13 @@ public:
         return y;
     }
 
+    void reset() {
+        for (int i = 0; i < 4; ++i) {
+            m_x.overwrite(0, static_cast<size_t>(i));
+            m_y.overwrite(0, static_cast<size_t>(i));
+        }
+    }
+
     inline void setCutoffFrequency(T_Real f_c, T_Real sampleRate) {
         const T_Real f = std::tan(static_cast<T_Real>(constants::pi) * f_c / sampleRate);
         const T_Real f_2 = f * f;

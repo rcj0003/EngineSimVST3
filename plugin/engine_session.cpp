@@ -1,12 +1,17 @@
 #include "engine_session.h"
 
 #include "compiler.h"
+#include "engine.h"
 #include "exhaust_system.h"
+#include "ignition_module.h"
 #include "impulse_response.h"
 #include "pcm_wave.h"
+#include "piston_engine_simulator.h"
 #include "simulator.h"
 #include "synthesizer.h"
+#include "transmission.h"
 #include "units.h"
+#include "vehicle.h"
 
 #include <algorithm>
 #include <chrono>
@@ -306,6 +311,7 @@ void EngineSimSession::release() {
     m_smoothedThrottle = 0.0;
     m_appliedGear = -1;
     m_crankUntilRunning = false;
+    m_resetWasHigh = false;
     m_measuredRpm.store(0.0f, std::memory_order_relaxed);
 }
 
@@ -475,6 +481,31 @@ void EngineSimSession::prepare(double sampleRate) {
 
     m_sampleRate = sampleRate;
     m_simulator->synthesizer().setAudioSampleRate(static_cast<float>(sampleRate));
+}
+
+void EngineSimSession::softReset() {
+    if (m_simulator == nullptr || m_engine == nullptr)
+        return;
+
+    auto *simulator = dynamic_cast<PistonEngineSimulator *>(m_simulator);
+    if (simulator == nullptr)
+        return;
+
+    simulator->resetToInitialState();
+
+    m_smoothedThrottle = 0.0;
+    m_simulator->m_starterMotor.m_enabled = true;
+    m_crankUntilRunning = true;
+    m_measuredRpm.store(0.0f, std::memory_order_relaxed);
+
+    if (m_vehicle != nullptr)
+        m_vehicle->resetTravelledDistance();
+}
+
+void EngineSimSession::applyResetEdge(bool reset) {
+    if (reset && !m_resetWasHigh)
+        softReset();
+    m_resetWasHigh = reset;
 }
 
 void EngineSimSession::applyControls(const BlockControls &controls) {

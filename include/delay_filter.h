@@ -29,6 +29,10 @@ public:
         return static_cast<float>(fast_f(static_cast<double>(sample)));
     }
 
+    void clear() {
+        m_history.clear();
+    }
+
     inline double fast_f(double sample) {
         m_history.write(sample);
 

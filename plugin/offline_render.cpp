@@ -122,6 +122,66 @@ bool renderTake(const std::string &name, bool hold, const std::filesystem::path 
     return peak > 0.0f;
 }
 
+bool resetReturnsToRest() {
+    EngineSimSession running;
+    if (!running.loadNear(ENGINE_SIM_ROOT)) {
+        std::cerr << "reset: " << running.error() << '\n';
+        return false;
+    }
+
+    EngineSimSession fresh;
+    if (!fresh.loadNear(ENGINE_SIM_ROOT)) {
+        std::cerr << "reset: " << fresh.error() << '\n';
+        return false;
+    }
+
+    running.prepare(kSampleRate);
+    fresh.prepare(kSampleRate);
+
+    const EngineSimSession::BlockControls controls = baseControls(running);
+    const EngineSimSession::BlockControls freshControls = baseControls(fresh);
+    std::vector<float> block(static_cast<size_t>(kBlockSamples), 0.0f);
+
+    const int warmupBlocks = std::max(1, static_cast<int>(std::llround(1.0 * kSampleRate / kBlockSamples)));
+    for (int i = 0; i < warmupBlocks; ++i)
+        running.process(controls, kBlockSamples, block.data());
+
+    const float runningRpm = running.measuredRpm();
+
+    const int settleBlocks = std::max(1, static_cast<int>(std::llround(0.05 * kSampleRate / kBlockSamples)));
+    for (int i = 0; i < settleBlocks; ++i)
+        fresh.process(freshControls, kBlockSamples, block.data());
+    const float freshRpm = fresh.measuredRpm();
+
+    // A reset between notes is applied with no simulation step in between.
+    running.applyResetEdge(true);
+    running.applyResetEdge(false);
+    if (running.measuredRpm() > 1.0f) {
+        std::cerr << "reset: rpm stayed at " << running.measuredRpm() << " after the edge\n";
+        return false;
+    }
+
+    for (int i = 0; i < settleBlocks; ++i)
+        running.process(controls, kBlockSamples, block.data());
+    const float restartedRpm = running.measuredRpm();
+
+    const float tolerance = std::max(80.0f, freshRpm * 0.35f);
+    const bool matchesFresh = std::abs(restartedRpm - freshRpm) <= tolerance;
+    const bool leftRunning = runningRpm > 800.0f && restartedRpm < runningRpm * 0.5f;
+
+    std::cout << "reset: running=" << runningRpm
+              << " fresh=" << freshRpm
+              << " restarted=" << restartedRpm
+              << '\n';
+
+    if (!matchesFresh || !leftRunning) {
+        std::cerr << "reset: restarted engine did not match a fresh start\n";
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -135,5 +195,6 @@ int main(int argc, char **argv) {
 
     const bool freeOk = renderTake("free-running", false, directory / "free-running.wav");
     const bool holdOk = renderTake("hold", true, directory / "hold.wav");
-    return freeOk && holdOk ? 0 : 1;
+    const bool resetOk = resetReturnsToRest();
+    return freeOk && holdOk && resetOk ? 0 : 1;
 }

@@ -13,6 +13,7 @@ class LevelingFilter : public Filter {
         virtual float f(float sample);
         // Scales the gain that was just applied. Used when this sample would clip.
         void scaleAttenuation(float scale);
+        void reset();
         float getAttenuation() const { return m_attenuation; }
 
     protected:

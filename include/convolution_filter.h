@@ -9,6 +9,7 @@ class ConvolutionFilter : public Filter {
         virtual ~ConvolutionFilter();
 
         void initialize(int samples);
+        void clearHistory();
         virtual float f(float sample) override;
         virtual void destroy();
 

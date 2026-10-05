@@ -252,6 +252,19 @@ void Simulator::initializeSynthesizer() {
 void Simulator::simulateStep_() {
 }
 
+void Simulator::clearRuntimeState() {
+    m_filteredEngineSpeed = 0.0;
+    m_lastDynoTorqueSample = 0;
+    if (m_dynoTorqueSamples != nullptr) {
+        for (int i = 0; i < DynoTorqueSamples; ++i)
+            m_dynoTorqueSamples[i] = 0.0;
+    }
+
+    m_dyno.m_enabled = false;
+    m_dyno.m_hold = false;
+    m_dyno.m_rotationSpeed = 0.0;
+}
+
 void Simulator::updateFilteredEngineSpeed(double dt) {
     const double alpha = dt / (100 + dt);
     m_filteredEngineSpeed = alpha * m_filteredEngineSpeed + (1 - alpha) * m_engine->getRpm();
