@@ -28,11 +28,8 @@ public:
             m_offset = 0;
         }
 
-        std::uniform_real_distribution<float> dist(
-            0.0f,
-            static_cast<float>(m_maxJitter - 1));
-        
-        const float s = m_noiseFilter.fast_f(dist(m_generator) * m_jitterScale * jitterScale);
+        const float s = m_noiseFilter.fast_f(
+            m_jitterDistribution(m_generator) * m_jitterScale * jitterScale);
         const float s_i_0 = clamp(std::floor(s), 0.0f, static_cast<float>(m_maxJitter - 1));
         const float s_i_1 = clamp(std::ceil(s), 0.0f, static_cast<float>(m_maxJitter - 1));
 
@@ -59,6 +56,7 @@ protected:
     float *m_history;
 
     std::default_random_engine m_generator;
+    std::uniform_real_distribution<float> m_jitterDistribution{0.0f, 1.0f};
 };
 
 #endif /* ATG_ENGINE_SIM_JITTER_FILTER_H */

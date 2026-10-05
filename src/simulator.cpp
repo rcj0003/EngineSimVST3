@@ -129,18 +129,19 @@ bool Simulator::simulateOneMoreStep() {
 }
 
 bool Simulator::simulateStep() {
-    if (getCurrentIteration() >= simulationSteps()) {
-        auto s1 = std::chrono::steady_clock::now();
-
-        const long long lastFrame =
-            std::chrono::duration_cast<std::chrono::microseconds>(s1 - m_simulationStart).count();
-        m_physicsProcessingTime = m_physicsProcessingTime * 0.98 + 0.02 * lastFrame;
-
+    if (getCurrentIteration() >= simulationSteps())
         return false;
-    }
 
     const double timestep = getTimestep();
+    const auto solverStart = m_stageTimingEnabled
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point();
     m_system->process(timestep, 1);
+    if (m_stageTimingEnabled) {
+        m_stageTimings.solverSeconds += std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - solverStart).count();
+        ++m_stageTimings.physicsSteps;
+    }
 
     m_engine->update(timestep);
     m_vehicle->update(timestep);

@@ -11,6 +11,10 @@ class ConvolutionFilter : public Filter {
         void initialize(int samples);
         void clearHistory();
         virtual float f(float sample) override;
+        // Same sum as f(), one sample at a time, for a whole block.
+        void process(const float *input, float *output, int count);
+        // Writes the same history f() would, without the multiply-add.
+        void advanceHistory(const float *input, int count);
         virtual void destroy();
 
         int getSampleCount() const { return m_sampleCount; }
@@ -21,6 +25,7 @@ class ConvolutionFilter : public Filter {
         int m_shiftOffset;
 
         float *m_impulseResponse;
+        float *m_window;
         int m_sampleCount;
 };
 

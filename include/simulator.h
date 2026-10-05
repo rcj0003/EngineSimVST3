@@ -27,6 +27,12 @@ public:
 
     static constexpr int DynoTorqueSamples = 512;
 
+    struct StageTimings {
+        double solverSeconds = 0.0;
+        double fluidSeconds = 0.0;
+        long long physicsSteps = 0;
+    };
+
 public:
     Simulator();
     virtual ~Simulator();
@@ -83,6 +89,11 @@ public:
 
     double filteredEngineSpeed() const { return m_filteredEngineSpeed; }
 
+    void setStageTimingEnabled(bool enabled) { m_stageTimingEnabled = enabled; }
+    bool stageTimingEnabled() const { return m_stageTimingEnabled; }
+    void resetStageTimings() { m_stageTimings = StageTimings(); }
+    const StageTimings &stageTimings() const { return m_stageTimings; }
+
     // Zeroes the filtered tachometer, dyno history, and dyno hold.
     void clearRuntimeState();
 
@@ -95,6 +106,7 @@ protected:
     virtual void writeToSynthesizer() = 0;
 
     atg_scs::RigidBodySystem *m_system;
+    StageTimings m_stageTimings;
 
 private:
     void updateFilteredEngineSpeed(double dt);
@@ -126,6 +138,8 @@ private:
     double m_filteredEngineSpeed;
 
     int m_steps;
+
+    bool m_stageTimingEnabled = false;
 };
 
 #endif /* ATG_ENGINE_SIM_SIMULATOR_H */

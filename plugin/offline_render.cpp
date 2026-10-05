@@ -1,6 +1,7 @@
 #include "engine_session.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -182,9 +183,76 @@ bool resetReturnsToRest() {
     return true;
 }
 
+bool profileScript(const std::filesystem::path &script) {
+    EngineSimSession session;
+    if (!session.loadNear(ENGINE_SIM_ROOT)) {
+        std::cerr << script << ": " << session.error() << '\n';
+        return false;
+    }
+
+    EngineSimSession::CompiledEngine compiled;
+    std::string error;
+    if (!session.compileScript(script.string(), compiled, error) || !session.install(compiled)) {
+        std::cerr << script << ": " << (error.empty() ? session.error() : error) << '\n';
+        return false;
+    }
+
+    session.prepare(kSampleRate);
+    session.setStageTimingEnabled(true);
+    session.resetStageTimings();
+
+    EngineSimSession::BlockControls controls = baseControls(session);
+    controls.ignition = true;
+    constexpr double profileSeconds = 1.0;
+    const int total = static_cast<int>(std::llround(profileSeconds * kSampleRate));
+    std::vector<float> samples(static_cast<size_t>(kBlockSamples), 0.0f);
+
+    const auto wallStart = std::chrono::steady_clock::now();
+    int rendered = 0;
+    while (rendered < total) {
+        const int count = std::min(kBlockSamples, total - rendered);
+        session.process(controls, count, samples.data());
+        rendered += count;
+    }
+    const double wallSeconds = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - wallStart).count();
+
+    const EngineSimSession::StageTimings timings = session.stageTimings();
+    const double audioSeconds = static_cast<double>(total) / kSampleRate;
+    std::cout << "profile " << script.filename()
+              << " cylinders=" << session.cylinderCount()
+              << " simHz=" << session.simulationFrequency()
+              << " sampleRate=" << kSampleRate
+              << " audioSeconds=" << audioSeconds
+              << " peak=" << peakOf(samples)
+              << '\n';
+    std::cout << "  solverSeconds=" << timings.solverSeconds
+              << " fluidSeconds=" << timings.fluidSeconds
+              << " convolutionSeconds=" << timings.convolutionSeconds
+              << " physicsSteps=" << timings.physicsSteps
+              << " wallSeconds=" << wallSeconds
+              << '\n';
+    std::cout << "  perAudioSecond solver=" << (timings.solverSeconds / audioSeconds)
+              << " fluid=" << (timings.fluidSeconds / audioSeconds)
+              << " convolution=" << (timings.convolutionSeconds / audioSeconds)
+              << " wall=" << (wallSeconds / audioSeconds)
+              << '\n';
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
+    if (argc > 1 && std::string(argv[1]) == "--profile") {
+        if (argc < 4) {
+            std::cerr << "usage: engine-sim-offline-render --profile four-cylinder.mr eight-cylinder.mr\n";
+            return 1;
+        }
+        const bool first = profileScript(argv[2]);
+        const bool second = profileScript(argv[3]);
+        return first && second ? 0 : 1;
+    }
+
     const std::filesystem::path directory = argc > 1 ? argv[1] : std::filesystem::current_path();
     std::error_code error;
     std::filesystem::create_directories(directory, error);
