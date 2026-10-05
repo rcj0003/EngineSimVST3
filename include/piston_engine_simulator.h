@@ -24,6 +24,8 @@ class PistonEngineSimulator : public Simulator {
         virtual ~PistonEngineSimulator() override;
 
         void loadSimulation(Engine *engine, Vehicle *vehicle, Transmission *transmission);
+        // Returns the crank, gas, and exhaust delay to the pose from loadSimulation.
+        void resetToInitialState();
 
         virtual double getTotalExhaustFlow() const;
         void endFrame();

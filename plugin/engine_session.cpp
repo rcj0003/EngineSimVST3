@@ -1,13 +1,12 @@
 #include "engine_session.h"
 
-#include "combustion_chamber.h"
 #include "compiler.h"
 #include "engine.h"
 #include "exhaust_system.h"
 #include "ignition_module.h"
 #include "impulse_response.h"
-#include "intake.h"
 #include "pcm_wave.h"
+#include "piston_engine_simulator.h"
 #include "simulator.h"
 #include "synthesizer.h"
 #include "transmission.h"
@@ -488,47 +487,13 @@ void EngineSimSession::softReset() {
     if (m_simulator == nullptr || m_engine == nullptr)
         return;
 
-    atg_scs::RigidBodySystem *system = m_simulator->getSystem();
-    if (system != nullptr) {
-        const int bodyCount = system->getRigidBodyCount();
-        for (int i = 0; i < bodyCount; ++i) {
-            atg_scs::RigidBody *body = system->getRigidBody(i);
-            if (body == nullptr)
-                continue;
-            body->v_x = 0.0;
-            body->v_y = 0.0;
-            body->v_theta = 0.0;
-        }
-    }
+    auto *simulator = dynamic_cast<PistonEngineSimulator *>(m_simulator);
+    if (simulator == nullptr)
+        return;
 
-    const double ambientP = units::pressure(1.0, units::atm);
-    const double ambientT = units::celcius(25.0);
-    const GasSystem::Mix ambientMix;
+    simulator->resetToInitialState();
 
-    for (int i = 0; i < m_engine->getCylinderCount(); ++i) {
-        CombustionChamber *chamber = m_engine->getChamber(i);
-        chamber->m_lit = false;
-        chamber->m_flameEvent = {};
-        chamber->m_system.setVolume(chamber->getVolume());
-        chamber->m_system.reset(ambientP, ambientT, ambientMix);
-        chamber->m_intakeRunnerAndManifold.reset(ambientP, ambientT, ambientMix);
-        chamber->m_exhaustRunnerAndPrimary.reset(ambientP, ambientT, ambientMix);
-        chamber->resetLastTimestepExhaustFlow();
-        chamber->resetLastTimestepIntakeFlow();
-    }
-
-    for (int i = 0; i < m_engine->getIntakeCount(); ++i)
-        m_engine->getIntake(i)->m_system.reset(ambientP, ambientT, ambientMix);
-
-    for (int i = 0; i < m_engine->getExhaustSystemCount(); ++i)
-        m_engine->getExhaustSystem(i)->getSystem()->reset(ambientP, ambientT, ambientMix);
-
-    m_engine->getIgnitionModule()->reset();
-    m_engine->resetFuelConsumption();
-
-    m_simulator->m_dyno.m_enabled = false;
-    m_simulator->m_dyno.m_hold = false;
-    m_simulator->m_dyno.m_rotationSpeed = 0.0;
+    m_smoothedThrottle = 0.0;
     m_simulator->m_starterMotor.m_enabled = true;
     m_crankUntilRunning = true;
     m_measuredRpm.store(0.0f, std::memory_order_relaxed);

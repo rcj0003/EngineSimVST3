@@ -93,6 +93,9 @@ class Synthesizer {
         // Samples written by writeInput and not yet consumed by renderBlock.
         int queuedSamples() const;
 
+        // Drops queued input and filter memory. The loaded impulse response stays.
+        void clearAudioHistory();
+
         // Renders up to maxSamples from the input written since the last call.
         // Do not use this while the audio rendering thread is running.
         // Samples are the same int16 signal the app plays, scaled to roughly -1..1.

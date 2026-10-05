@@ -127,6 +127,11 @@ public:
         m_start = startIndex;
     }
 
+    inline void clear() {
+        m_writeIndex = 0;
+        m_start = 0;
+    }
+
     inline size_t size() const {
         return (m_writeIndex < m_start)
             ? m_writeIndex + (m_capacity - m_start)

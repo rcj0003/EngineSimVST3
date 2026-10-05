@@ -56,6 +56,7 @@ EngineSimAudioProcessor::EngineSimAudioProcessor()
     , m_parameters(*this, nullptr, juce::Identifier("EngineSim"), createParameterLayout())
 {
     bindParameters();
+    m_parameters.addParameterListener("reset", this);
 
     const auto executable = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
     if (!m_session.loadNear(executable.getFullPathName().toStdString()))
@@ -68,7 +69,14 @@ EngineSimAudioProcessor::EngineSimAudioProcessor()
     m_assetDirectory = juce::String(m_session.assetDirectory());
 }
 
-EngineSimAudioProcessor::~EngineSimAudioProcessor() = default;
+EngineSimAudioProcessor::~EngineSimAudioProcessor() {
+    m_parameters.removeParameterListener("reset", this);
+}
+
+void EngineSimAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue) {
+    if (parameterID == "reset" && newValue >= 0.5f)
+        m_resetRequested.store(true, std::memory_order_release);
+}
 
 juce::AudioProcessorValueTreeState::ParameterLayout EngineSimAudioProcessor::createParameterLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -334,7 +342,9 @@ void EngineSimAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juc
         return;
     }
 
-    const EngineSimSession::BlockControls controls = readControls();
+    EngineSimSession::BlockControls controls = readControls();
+    if (m_resetRequested.exchange(false, std::memory_order_acq_rel))
+        controls.reset = true;
     m_session.applyResetEdge(controls.reset);
 
     bool active = false;

@@ -26,6 +26,14 @@ void ConvolutionFilter::initialize(int samples) {
     memset(m_impulseResponse, 0, sizeof(float) * samples);
 }
 
+void ConvolutionFilter::clearHistory() {
+    if (m_shiftRegister == nullptr || m_sampleCount <= 0)
+        return;
+
+    memset(m_shiftRegister, 0, sizeof(float) * static_cast<size_t>(m_sampleCount));
+    m_shiftOffset = 0;
+}
+
 void ConvolutionFilter::destroy() {
     delete[] m_shiftRegister;
     delete[] m_impulseResponse;

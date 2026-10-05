@@ -23,6 +23,8 @@ class LowPassFilter : public Filter {
             m_rc = 1.0f / (f * 2.0f * static_cast<float>(constants::pi));
         }
 
+        void reset() { m_y = 0.0f; }
+
         float m_dt;
 
     protected:

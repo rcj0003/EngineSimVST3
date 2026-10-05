@@ -193,6 +193,82 @@ double PistonEngineSimulator::getAverageOutputSignal() const {
     return sum / m_engine->getExhaustSystemCount();
 }
 
+void PistonEngineSimulator::resetToInitialState() {
+    if (m_engine == nullptr)
+        return;
+
+    if (m_system != nullptr) {
+        const int bodyCount = m_system->getRigidBodyCount();
+        for (int i = 0; i < bodyCount; ++i) {
+            atg_scs::RigidBody *body = m_system->getRigidBody(i);
+            if (body == nullptr)
+                continue;
+            body->v_x = 0.0;
+            body->v_y = 0.0;
+            body->v_theta = 0.0;
+        }
+    }
+
+    const int crankCount = m_engine->getCrankshaftCount();
+    for (int i = 0; i < crankCount; ++i) {
+        Crankshaft *crankshaft = m_engine->getCrankshaft(i);
+        crankshaft->m_body.p_x = crankshaft->getPosX();
+        crankshaft->m_body.p_y = crankshaft->getPosY();
+        crankshaft->m_body.theta = 0.0;
+        crankshaft->m_body.v_x = 0.0;
+        crankshaft->m_body.v_y = 0.0;
+        crankshaft->m_body.v_theta = 0.0;
+    }
+
+    const int cylinderCount = m_engine->getCylinderCount();
+    for (int i = 0; i < cylinderCount; ++i) {
+        ConnectingRod *rod = m_engine->getConnectingRod(i);
+        if (rod->getRodJournalCount() != 0)
+            placeCylinder(i);
+    }
+
+    for (int i = 0; i < cylinderCount; ++i)
+        placeCylinder(i);
+
+    const double ambientP = units::pressure(1.0, units::atm);
+    const double ambientT = units::celcius(25.0);
+    const GasSystem::Mix ambientMix;
+
+    for (int i = 0; i < cylinderCount; ++i) {
+        CombustionChamber *chamber = m_engine->getChamber(i);
+        chamber->m_lit = false;
+        chamber->m_flameEvent = {};
+        chamber->m_peakTemperature = 0.0;
+        chamber->m_system.initialize(ambientP, chamber->getVolume(), ambientT);
+        chamber->m_intakeRunnerAndManifold.reset(ambientP, ambientT, ambientMix);
+        chamber->m_exhaustRunnerAndPrimary.reset(ambientP, ambientT, ambientMix);
+        chamber->resetLastTimestepExhaustFlow();
+        chamber->resetLastTimestepIntakeFlow();
+        if (m_delayFilters != nullptr)
+            m_delayFilters[i].clear();
+    }
+
+    for (int i = 0; i < m_engine->getIntakeCount(); ++i) {
+        Intake *intake = m_engine->getIntake(i);
+        intake->m_system.reset(ambientP, ambientT, ambientMix);
+        intake->m_flow = 0.0;
+        intake->m_flowRate = 0.0;
+    }
+
+    for (int i = 0; i < m_engine->getExhaustSystemCount(); ++i)
+        m_engine->getExhaustSystem(i)->getSystem()->reset(ambientP, ambientT, ambientMix);
+
+    if (m_exhaustFlowStagingBuffer != nullptr) {
+        for (int i = 0; i < m_engine->getExhaustSystemCount(); ++i)
+            m_exhaustFlowStagingBuffer[i] = 0.0;
+    }
+
+    m_engine->getIgnitionModule()->reset();
+    m_engine->resetFuelConsumption();
+    clearRuntimeState();
+    synthesizer().clearAudioHistory();
+}
+
 void PistonEngineSimulator::placeAndInitialize() {
     const int cylinderCount = m_engine->getCylinderCount();
     for (int i = 0; i < cylinderCount; ++i) {

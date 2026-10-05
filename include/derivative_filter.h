@@ -9,6 +9,7 @@ class DerivativeFilter : public Filter {
         virtual ~DerivativeFilter();
 
         virtual float f(float sample) override;
+        void reset() { m_previous = 0.0f; }
 
         float m_dt;
 

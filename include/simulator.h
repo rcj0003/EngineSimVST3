@@ -83,6 +83,9 @@ public:
 
     double filteredEngineSpeed() const { return m_filteredEngineSpeed; }
 
+    // Zeroes the filtered tachometer, dyno history, and dyno hold.
+    void clearRuntimeState();
+
     Dynamometer m_dyno;
     StarterMotor m_starterMotor;
 
