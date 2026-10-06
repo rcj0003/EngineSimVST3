@@ -6,7 +6,7 @@ EngineSimVST3 is a VST that integrates AngeTheGreat's Engine Simulator Demo into
 
 
 
-![Alt text](docs/public/screenshots/screenshot_daw_integration.png?raw=true)
+![Alt text](docs/public/screenshots/screenshot_updated_ui.png?raw=true)
 
 
 
@@ -33,7 +33,8 @@ Outside of the engine (which is not able to be changed via automation but can be
 # Potential TODOs
 
 
-- Improve the UI
+- Performance Enhancements?
+- More compatibility with community engines
 
 
 
