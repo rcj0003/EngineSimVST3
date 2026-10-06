@@ -377,6 +377,9 @@ void PistonEngineSimulator::simulateStep_() {
     const int exhaustSystemCount = m_engine->getExhaustSystemCount();
     const int intakeCount = m_engine->getIntakeCount();
     const double fluidTimestep = timestep / m_fluidSimulationSteps;
+    const auto fluidStart = stageTimingEnabled()
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point();
     for (int i = 0; i < m_fluidSimulationSteps; ++i) {
         for (int j = 0; j < exhaustSystemCount; ++j) {
             m_engine->getExhaustSystem(j)->process(fluidTimestep);
@@ -390,6 +393,10 @@ void PistonEngineSimulator::simulateStep_() {
         for (int j = 0; j < cylinderCount; ++j) {
             m_engine->getChamber(j)->flow(fluidTimestep);
         }
+    }
+    if (stageTimingEnabled()) {
+        m_stageTimings.fluidSeconds += std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - fluidStart).count();
     }
 
     im->resetIgnitionEvents();

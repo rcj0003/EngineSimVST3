@@ -435,11 +435,10 @@ bool EngineSimSession::install(CompiledEngine &compiled) {
     m_simulationFrequency = std::max(400, static_cast<int>(m_engine->getSimulationFrequency()));
     m_simulator->setSimulationFrequency(m_simulationFrequency);
 
-    Synthesizer::AudioParameters audio = m_simulator->synthesizer().getAudioParameters();
+    Synthesizer::AudioParameters &audio = m_simulator->synthesizer().audioParameters();
     audio.inputSampleNoise = static_cast<float>(m_engine->getInitialJitter());
     audio.airNoise = static_cast<float>(m_engine->getInitialNoise());
     audio.dF_F_mix = static_cast<float>(m_engine->getInitialHighFrequencyGain());
-    m_simulator->synthesizer().setAudioParameters(audio);
 
     m_volume = audio.volume;
     m_convolution = audio.convolution;
@@ -473,6 +472,36 @@ bool EngineSimSession::install(CompiledEngine &compiled) {
     m_simulator->m_dyno.m_hold = false;
 
     return true;
+}
+
+int EngineSimSession::cylinderCount() const {
+    return m_engine == nullptr ? 0 : m_engine->getCylinderCount();
+}
+
+void EngineSimSession::setStageTimingEnabled(bool enabled) {
+    if (m_simulator == nullptr)
+        return;
+    m_simulator->setStageTimingEnabled(enabled);
+    m_simulator->synthesizer().setStageTimingEnabled(enabled);
+}
+
+void EngineSimSession::resetStageTimings() {
+    if (m_simulator == nullptr)
+        return;
+    m_simulator->resetStageTimings();
+    m_simulator->synthesizer().resetConvolutionTiming();
+}
+
+EngineSimSession::StageTimings EngineSimSession::stageTimings() const {
+    StageTimings timings;
+    if (m_simulator == nullptr)
+        return timings;
+    const Simulator::StageTimings &physics = m_simulator->stageTimings();
+    timings.solverSeconds = physics.solverSeconds;
+    timings.fluidSeconds = physics.fluidSeconds;
+    timings.physicsSteps = physics.physicsSteps;
+    timings.convolutionSeconds = m_simulator->synthesizer().convolutionSeconds();
+    return timings;
 }
 
 void EngineSimSession::prepare(double sampleRate) {
@@ -543,12 +572,11 @@ void EngineSimSession::applyControls(const BlockControls &controls) {
         m_simulationFrequency = frequency;
     }
 
-    Synthesizer::AudioParameters audio = m_simulator->synthesizer().getAudioParameters();
+    Synthesizer::AudioParameters &audio = m_simulator->synthesizer().audioParameters();
     audio.volume = controls.volume;
     audio.convolution = controls.convolution;
     audio.dF_F_mix = controls.highFrequencyGain;
     audio.airNoise = controls.noise;
-    m_simulator->synthesizer().setAudioParameters(audio);
 }
 
 void EngineSimSession::renderChunk(int numSamples, float *output) {

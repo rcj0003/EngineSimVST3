@@ -62,6 +62,18 @@ public:
     const std::string &warnings() const { return m_warnings; }
     const std::string &assetDirectory() const { return m_assetDirectory; }
 
+    int cylinderCount() const;
+    void setStageTimingEnabled(bool enabled);
+    void resetStageTimings();
+
+    struct StageTimings {
+        double solverSeconds = 0.0;
+        double fluidSeconds = 0.0;
+        double convolutionSeconds = 0.0;
+        long long physicsSteps = 0;
+    };
+    StageTimings stageTimings() const;
+
     int simulationFrequency() const { return m_simulationFrequency; }
     float measuredRpm() const { return m_measuredRpm.load(std::memory_order_relaxed); }
     float volume() const { return m_volume; }

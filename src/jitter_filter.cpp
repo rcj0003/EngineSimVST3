@@ -25,6 +25,8 @@ void JitterFilter::initialize(
     memset(m_history, 0, sizeof(float) * maxJitter);
 
     m_noiseFilter.setCutoffFrequency(cutoffFrequency, audioFrequency);
+    const float jitterSpan = static_cast<float>(m_maxJitter > 0 ? m_maxJitter - 1 : 0);
+    m_jitterDistribution = std::uniform_real_distribution<float>(0.0f, jitterSpan);
 }
 
 float JitterFilter::f(float sample) {

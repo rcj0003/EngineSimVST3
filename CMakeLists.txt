@@ -179,6 +179,13 @@ target_include_directories(engine-sim
         ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules
         ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/submodules/simple-2d-constraint-solver/include)
 
+# f() is a separate multiply and add. Contracting that into an FMA would
+# disagree with the block FIR, including on -mfma / -march=native.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set_source_files_properties(src/convolution_filter.cpp PROPERTIES
+        COMPILE_OPTIONS "-ffp-contract=off")
+endif ()
+
 if (PIRANHA_ENABLED)
     add_library(engine-sim-script-interpreter STATIC
         # Source files
@@ -357,6 +364,8 @@ add_executable(engine-sim-test
     test/function_test.cpp
     test/pcm_wave_tests.cpp
     test/synthesizer_tests.cpp
+    test/convolution_filter_tests.cpp
+    test/constraint_solver_tests.cpp
 )
 
 target_compile_definitions(engine-sim-test PRIVATE

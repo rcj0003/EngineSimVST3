@@ -42,6 +42,8 @@ class Synthesizer {
         struct InputChannel {
             RingBuffer<float> data;
             float *transferBuffer = nullptr;
+            float *preConvolution = nullptr;
+            float *convolved = nullptr;
             double lastInputSample = 0.0f;
         };
 
@@ -106,6 +108,12 @@ class Synthesizer {
         double getLevelerGain();
         AudioParameters getAudioParameters();
         void setAudioParameters(const AudioParameters &params);
+        AudioParameters &audioParameters() { return m_audioParameters; }
+        const AudioParameters &audioParameters() const { return m_audioParameters; }
+
+        void setStageTimingEnabled(bool enabled) { m_stageTimingEnabled = enabled; }
+        void resetConvolutionTiming() { m_convolutionSeconds = 0.0; }
+        double convolutionSeconds() const { return m_convolutionSeconds; }
 
     //protected:
         ButterworthLowPassFilter<float> m_antialiasing;
@@ -134,6 +142,11 @@ class Synthesizer {
         std::condition_variable m_cv0;
 
         ProcessingFilters *m_filters;
+        bool m_stageTimingEnabled = false;
+        double m_convolutionSeconds = 0.0;
+
+        float prepareChannelSample(int channel, float sample, float airNoise, float dF_F_mix);
+        int16_t finishSample(float signal, float volume, float levelerTarget);
 };
 
 #endif /* ATG_ENGINE_SIM_ENGINE_SYNTHESIZER_H */
