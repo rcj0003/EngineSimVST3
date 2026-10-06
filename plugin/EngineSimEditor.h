@@ -1,6 +1,8 @@
 #pragma once
 
 #include "EngineSimProcessor.h"
+#include "RadioLookAndFeel.h"
+#include "SegmentDisplay.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -26,7 +28,8 @@ private:
     };
 
     EngineSimAudioProcessor &m_processor;
-    juce::Label m_status;
+    RadioLookAndFeel m_lookAndFeel;
+    SegmentDisplay m_display;
     juce::TextButton m_loadButton;
     juce::TextButton m_resetButton;
     std::unique_ptr<juce::FileChooser> m_chooser;
@@ -39,6 +42,9 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> m_starterAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> m_holdAttachment;
     std::vector<std::unique_ptr<SliderControl>> m_sliders;
+    juce::Rectangle<int> m_knobWell;
+    juce::Rectangle<int> m_eqWell;
+    juce::TooltipWindow m_tooltip;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EngineSimAudioProcessorEditor)
 };

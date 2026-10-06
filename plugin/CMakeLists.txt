@@ -75,8 +75,12 @@ target_sources(EngineSimPlugin
     PRIVATE
         EngineSimProcessor.cpp
         EngineSimEditor.cpp
+        RadioLookAndFeel.cpp
+        SegmentDisplay.cpp
         EngineSimProcessor.h
-        EngineSimEditor.h)
+        EngineSimEditor.h
+        RadioLookAndFeel.h
+        SegmentDisplay.h)
 
 target_compile_definitions(EngineSimPlugin
     PUBLIC
